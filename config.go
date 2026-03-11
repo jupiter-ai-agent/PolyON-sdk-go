@@ -5,6 +5,7 @@ package polyon
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 )
@@ -129,9 +130,30 @@ func Load() (*Config, error) {
 	}
 
 	// Directory (LDAP)
+	dirHost := env("LDAP_HOST")
+	dirPort := envInt("LDAP_PORT", 0)
+	if dirHost == "" {
+		// Fallback: parse from LDAP_URL if LDAP_HOST/PORT are not provided
+		if raw := env("LDAP_URL"); raw != "" {
+			if u, err := url.Parse(raw); err == nil {
+				host := u.Hostname()
+				if host != "" {
+					dirHost = host
+				}
+				if p := u.Port(); p != "" {
+					if n, err := strconv.Atoi(p); err == nil {
+						dirPort = n
+					}
+				}
+			}
+		}
+	}
+	if dirPort == 0 {
+		dirPort = 389
+	}
 	cfg.Directory = DirectoryConfig{
-		Host:         env("LDAP_HOST"),
-		Port:         envInt("LDAP_PORT", 389),
+		Host:         dirHost,
+		Port:         dirPort,
 		BaseDN:       env("LDAP_BASE_DN"),
 		BindDN:       env("LDAP_BIND_DN"),
 		BindPassword: env("LDAP_BIND_PASSWORD"),
